@@ -24,3 +24,32 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+
+# ---------------------------------------------------------------
+# 支付宝沙箱（详见 docs/支付宝沙箱接入指南.md）
+#
+# enabled=false（默认）：走 Mock 渠道，本地无密钥也能跑通"下单→支付→入账→退款"全流程。
+# enabled=true         ：走真实沙箱，必须把下面三个密钥配齐，否则启动直接报错
+#                        （宁可启动失败，也不要"以为在收真钱其实在 Mock"）。
+#
+# 密钥不要写进本文件提交仓库，用环境变量注入：
+#   MALL_ALIPAY_APP_ID / MALL_ALIPAY_PRIVATE_KEY / MALL_ALIPAY_PUBLIC_KEY
+# 或建 application-local.yml 本地覆盖（已在 .gitignore 中忽略）。
+# ---------------------------------------------------------------
+mall:
+  alipay:
+    enabled: ${MALL_ALIPAY_ENABLED:false}
+    app-id: ${MALL_ALIPAY_APP_ID:}
+    private-key: ${MALL_ALIPAY_PRIVATE_KEY:}
+    alipay-public-key: ${MALL_ALIPAY_PUBLIC_KEY:}
+    # 沙箱网关（生产环境改成 https://openapi.alipay.com/gateway.do）
+    gateway-url: ${MALL_ALIPAY_GATEWAY:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+    sign-type: RSA2
+    charset: UTF-8
+    # 用户付款后浏览器跳回的页面（前端路由）
+    return-url: ${MALL_ALIPAY_RETURN_URL:http://localhost:5173/pay/result}
+    # 异步通知基地址：必须是支付宝服务器能访问到的公网地址！
+    # 本机开发需要内网穿透（ngrok/cpolar 等）把网关 8090 暴露出去，
+    # 实际通知地址为 {notify-base}/api/pay/alipay/notify
+    notify-base: ${MALL_ALIPAY_NOTIFY_BASE:http://localhost:8090}
+    notify-url: ${MALL_ALIPAY_NOTIFY_URL:}

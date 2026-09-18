@@ -50,7 +50,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/portal/adverts",
             "/api/portal/products",
             "/api/portal/shops",
-            "/api/pay/mock/callback"
+            "/api/pay/mock/callback",
+            // 支付宝异步通知：由支付宝服务器直接 POST，没有也不可能有 JWT；
+            // 安全性由下游 pay-service 的 RSA2 验签 + 金额核对保证（PayService.handleAlipayNotify）
+            "/api/pay/alipay/notify"
     };
 
     /** 路径前缀 -> 允许的身份类型 */

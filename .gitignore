@@ -16,6 +16,27 @@ Thumbs.db
 target/
 logs/*.log
 
+# 本地运行日志（scripts/start-*.ps1 生成）
+logs/
+*.original
+
+# 本地环境产物（每台机器 IP 不同，不入库）
+docker/.env
+docker/generated/
+docker/logs/
+
+# 支付宝沙箱密钥等本地敏感配置（绝不能提交）
+# 用法：mall-backend/mall-pay-service/src/main/resources/application-local.yml
+# 内容示例见 docs/支付宝沙箱接入指南.md
+application-local.yml
+application-local.yaml
+*-local.yml
+*-local.yaml
+
+# 说明：application.yml 是各服务的正式配置，必须入库。
+# 下面两行是历史遗留的反向规则，会连 application.yml 一起忽略掉；
+# 若 git status 里看不到 mall-backend/*/src/main/resources/application.yml，
+# 说明它们已被排除，按需删除这两行或对具体文件 git add -f。
 application.yaml
 application.yml
 

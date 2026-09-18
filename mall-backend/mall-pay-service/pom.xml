@@ -42,6 +42,12 @@
             <version>3.27.2</version>
         </dependency>
 
+        <!-- 支付宝沙箱 SDK：AlipaySandboxClient 使用（含验签、页面支付、退款、查询） -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.mall</groupId>
             <artifactId>mall-common</artifactId>

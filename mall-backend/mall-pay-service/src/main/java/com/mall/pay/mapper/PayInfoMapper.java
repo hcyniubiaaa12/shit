@@ -14,4 +14,8 @@ public interface PayInfoMapper extends BaseMapper<PayInfo> {
             "WHERE id = #{id} AND status = 0")
     int markSuccess(@Param("id") Long id, @Param("tradeNo") String tradeNo,
                     @Param("body") String body);
+
+    /** 状态机置关闭：仅"待支付"可置（订单取消/超时取消时关闭渠道支付单） */
+    @Update("UPDATE pay_info SET status = 3, notify_time = NOW(), update_time = NOW() WHERE id = #{id} AND status = 0")
+    int markClosed(@Param("id") Long id);
 }

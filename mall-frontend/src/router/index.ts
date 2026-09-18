@@ -18,6 +18,8 @@ const router = createRouter({
         { path: 'cart', name: 'cart', component: () => import('@/views/mall/CartPage.vue') },
         { path: 'orders', name: 'orders', component: () => import('@/views/mall/OrdersPage.vue') },
         { path: 'profile', name: 'profile', component: () => import('@/views/mall/ProfilePage.vue') },
+        // 静态路径必须放在 pay/:orderNo 之前，否则 "result" 会被当成订单号匹配
+        { path: 'pay/result', name: 'pay-result', component: () => import('@/views/mall/PayResult.vue') },
         { path: 'pay/:orderNo', name: 'pay', component: () => import('@/views/mall/PayPage.vue') },
         { path: 'login', name: 'login', component: () => import('@/views/mall/Login.vue') },
         { path: 'register', name: 'register', component: () => import('@/views/mall/Register.vue') },

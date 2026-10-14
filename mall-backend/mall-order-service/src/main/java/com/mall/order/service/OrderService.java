@@ -72,6 +72,10 @@ public class OrderService {
     @Value("${mall.order.timeout-delay-level}")
     private int timeoutDelayLevel;
 
+    /** 支付超时时长（分钟）：与延迟等级对应（level 16 = 30m），供订单接口计算前端倒计时剩余秒数 */
+    @Value("${mall.order.pay-timeout-minutes:30}")
+    private long payTimeoutMinutes;
+
     private static final DateTimeFormatter ORDER_NO_FMT = DateTimeFormatter.ofPattern("yyMMddHHmmss");
 
     // -----------------------------------------------------
@@ -375,6 +379,11 @@ public class OrderService {
         vo.setSendTime(o.getSendTime());
         vo.setReceiveTime(o.getReceiveTime());
         vo.setCreateTime(o.getCreateTime());
+        // 待支付订单附剩余秒数（服务端时间基准）；已到期取 0，非待支付不返回（null）
+        if (o.getStatus() != null && o.getStatus() == 0 && o.getCreateTime() != null) {
+            long left = payTimeoutMinutes * 60 - Duration.between(o.getCreateTime(), LocalDateTime.now()).getSeconds();
+            vo.setRemainSeconds(Math.max(0, left));
+        }
         List<OrderItem> items = orderItemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
                 .eq(OrderItem::getOrderNo, o.getOrderNo()));
         fillItemImg(items);

@@ -3,7 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPay, getPayStatus, mockPayCallback, syncPay, type PayCreateResult } from '@/api/pay'
-import { getMyOrders } from '@/api/order'
+import { getOrderDetail, getMyOrders } from '@/api/order'
+import CountDown from '@/components/CountDown.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,9 +16,13 @@ const paid = ref(false)
 const failed = ref(false)
 /** 订单在下单 30 分钟内未支付被取消（含用户手动取消）——此时渠道交易会被关闭或原路退回 */
 const cancelled = ref(false)
+/** 支付剩余秒数（服务端时间基准）：null 表示未取到，不渲染倒计时 */
+const remainSeconds = ref<number | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined
 /** 是否真实支付宝沙箱渠道（决定展示"去支付宝付款"还是"模拟支付"按钮） */
 const realChannel = computed(() => voucher.value?.realChannel === true)
+/** 支付动作锁定：已支付 / 订单已取消 / 倒计时到 0（超时后渠道侧 timeout_express 也已过期，继续支付只会进悬挂款流程） */
+const payLocked = computed(() => paid.value || cancelled.value || remainSeconds.value === 0)
 
 async function load() {
   loading.value = true
@@ -25,6 +30,16 @@ async function load() {
     // 每次进入支付页都重新取一次渠道凭证：支付宝跳转 URL 可重复使用，Mock 幂等
     voucher.value = await createPay(orderNo.value)
     loading.value = false
+    // 订单详情取服务端算好的支付剩余秒数（倒计时仅展示；失败不阻断支付主链路）
+    getOrderDetail(orderNo.value)
+      .then((o) => {
+        // 后端全局 Long→字符串序列化，remainSeconds 实际是 "1590" 这类字符串，统一转数字
+        const s = Number(o.remainSeconds)
+        if (o.status === 0 && Number.isFinite(s)) {
+          remainSeconds.value = s
+        }
+      })
+      .catch(() => {})
     // 真实渠道：用户去支付宝付款，这里同时开始轮询，付款成功后自动收口
     if (realChannel.value) {
       pollStatus()
@@ -125,6 +140,11 @@ async function refreshStatus() {
   paid.value = await getPayStatus(orderNo.value)
 }
 
+/** 前端倒计时到 0：不发取消请求（真实取消由后端 MQ 消费端收口），立即重查一次状态收口 UI */
+function onExpired() {
+  refreshStatus()
+}
+
 onMounted(load)
 onUnmounted(() => clearInterval(timer))
 </script>
@@ -139,16 +159,20 @@ onUnmounted(() => clearInterval(timer))
         <p class="md-num payno">支付单号 {{ voucher?.payNo }}</p>
         <p class="md-num orderno">订单 {{ orderNo }}</p>
         <p v-if="voucher?.amount" class="amount">应付 ¥{{ voucher?.amount }}</p>
+        <div v-if="!paid && !cancelled && remainSeconds !== null" class="deadline-bar">
+          <template v-if="remainSeconds > 0">
+            <p class="deadline-main">
+              请在 <CountDown class="deadline-num" :seconds="remainSeconds" @expired="onExpired" /> 内完成支付
+            </p>
+            <p class="deadline-sub">超时订单将自动取消，已付款会原路退回</p>
+          </template>
+          <p v-else class="deadline-main is-expired">支付时间已用完，订单将自动取消</p>
+        </div>
 
         <!-- 真实支付宝沙箱渠道 -->
         <template v-if="realChannel">
-          <p class="hint">
-            已接入支付宝沙箱。<b>点击下方按钮在新窗口打开支付宝收银台</b>，
-            用沙箱买家账号付款。付款完成后本页会自动向支付宝查单确认（异步通知需要公网
-            <code>notify-base</code>，本机开发靠主动查单兜底），确认到账即自动跳转订单页。
-          </p>
           <div class="actions">
-            <el-button type="primary" size="large" :disabled="paid" @click="gotoAlipay">前往支付宝付款</el-button>
+            <el-button type="primary" size="large" :disabled="payLocked" @click="gotoAlipay">前往支付宝付款</el-button>
             <el-button size="large" :disabled="paid" @click="refreshStatus">我已付款，刷新状态</el-button>
             <router-link class="back" to="/orders">返回订单列表</router-link>
           </div>
@@ -162,8 +186,8 @@ onUnmounted(() => clearInterval(timer))
             配置真实沙箱密钥后将自动切换为支付宝收银台（见 docs/支付宝沙箱接入指南.md）。
           </p>
           <div class="actions">
-            <el-button type="primary" size="large" :disabled="paid" @click="mockCallback(true)">模拟支付成功</el-button>
-            <el-button size="large" :disabled="failed" @click="mockCallback(false)">模拟支付失败</el-button>
+            <el-button type="primary" size="large" :disabled="payLocked" @click="mockCallback(true)">模拟支付成功</el-button>
+            <el-button size="large" :disabled="payLocked" @click="mockCallback(false)">模拟支付失败</el-button>
             <router-link class="back" to="/orders">返回订单列表</router-link>
           </div>
         </template>
@@ -222,6 +246,34 @@ onUnmounted(() => clearInterval(timer))
   font-size: 30px;
   font-weight: 700;
   margin: 8px 0 16px;
+}
+.deadline-bar {
+  margin: -4px 0 18px;
+  padding: 12px 16px;
+  border-radius: var(--md-radius);
+  background: #fff7ef;
+  border: 1px solid #ffe3c2;
+}
+.deadline-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #b25e00;
+}
+.deadline-num {
+  font-size: 20px;
+  color: #d46b08;
+}
+.deadline-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--md-color-ink-sub);
+}
+.is-expired {
+  color: #e0342c;
 }
 .hint {
   font-size: 13px;

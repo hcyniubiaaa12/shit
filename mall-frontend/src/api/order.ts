@@ -31,6 +31,8 @@ export interface OrderVO {
   sendTime?: string
   receiveTime?: string
   createTime: string
+  /** 待支付剩余秒数（仅 status=0 返回，服务端时间基准；0 表示已到期，取消由后端 MQ 收口）。后端 Long 全局序列化为字符串，实际可能是 "1590" */
+  remainSeconds?: number | string
   items: OrderItem[]
 }
 
@@ -75,6 +77,8 @@ export interface MyOrderQuery {
 
 export const getMyOrders = (query: MyOrderQuery = {}) =>
   http.get<never, Page<OrderVO>>('/order/list', { params: query })
+/** 订单详情（含待支付剩余秒数 remainSeconds） */
+export const getOrderDetail = (orderNo: string) => http.get<never, OrderVO>(`/order/${orderNo}`)
 export const cancelOrder = (orderNo: string) => http.put(`/order/${orderNo}/cancel`)
 export const receiveOrder = (orderNo: string) => http.put(`/order/${orderNo}/receive`)
 

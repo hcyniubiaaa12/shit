@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { cancelOrder, getMyOrders, receiveOrder, STATUS_TEXT, type OrderVO } from '@/api/order'
 import { requestRefund } from '@/api/pay'
+import CountDown from '@/components/CountDown.vue'
 
 const TABS = [
   { key: 'all', label: '全部', value: undefined as number | undefined },
@@ -124,6 +125,11 @@ async function refund(order: OrderVO) {
   load()
 }
 
+/** 待支付倒计时到 0：重查列表（真实取消由后端 MQ 收口；若 MQ 尚未消费则该行不再显示倒计时） */
+function onExpired() {
+  setTimeout(load, 2000)
+}
+
 onMounted(() => {
   load()
   loadCounts()
@@ -180,6 +186,10 @@ onMounted(() => {
         <header class="order-head">
           <span class="order-no md-num">订单 {{ o.orderNo }}</span>
           <span class="order-status-text">{{ STATUS_TEXT[o.status] ?? `状态 ${o.status}` }}</span>
+          <span
+            v-if="o.status === 0 && Number(o.remainSeconds) > 0"
+            class="order-cd"
+          >支付剩余 <CountDown :seconds="Number(o.remainSeconds)" @expired="onExpired" /></span>
           <span class="order-time md-num">下单 {{ o.createTime?.replace('T', ' ').slice(0, 16) }}</span>
         </header>
         <section class="order-body">
@@ -356,6 +366,14 @@ onMounted(() => {
 .order-status-text {
   color: var(--mx-red);
   font-weight: 600;
+}
+.order-cd {
+  font-size: 12px;
+  color: var(--mx-ink-2);
+  padding: 2px 8px;
+  border: 1px solid var(--mx-line);
+  border-radius: 10px;
+  background: #fff;
 }
 .order-time {
   margin-left: auto;

@@ -49,5 +49,11 @@ public class OrderVO {
 
     private LocalDateTime createTime;
 
+    /**
+     * 待支付剩余秒数（仅 status=0 返回；服务端时间为基准，供前端倒计时展示）。
+     * 到 0 只代表展示到期，真实取消以后端 MQ 消费端的状态机为准。
+     */
+    private Long remainSeconds;
+
     private List<OrderItem> items;
 }

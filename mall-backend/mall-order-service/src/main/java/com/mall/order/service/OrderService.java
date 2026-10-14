@@ -188,6 +188,7 @@ public class OrderService {
                     org.springframework.messaging.support.MessageBuilder.withPayload(orderNo).build();
             try {
                 rocketMQTemplate.syncSend(TIMEOUT_TOPIC, msg, 5000, timeoutDelayLevel);
+                log.info("[超时取消] 延迟消息发送成功: orderNo={} topic={} delayLevel={}（到期自动取消）", orderNo, TIMEOUT_TOPIC, timeoutDelayLevel);
             } catch (Exception e) {
                 log.warn("[超时取消] 延迟消息发送失败（超时取消暂不可用）: orderNo={} cause={}", orderNo, e.getMessage());
             }
